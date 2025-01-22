@@ -119,6 +119,7 @@ const Home: React.FC = () => {
               </Typography>
               <img src={selectedExhibitor.profile_picture} alt="Profile" style={{ width: '100px', height: '100px' }} />
             </Grid>
+            { !!!selectedExhibitor.ExhibitorID && <Typography>No assoicated Exhibitor</Typography> }  
           </Grid>
           )}
         </DialogContent>

@@ -1,36 +1,42 @@
-import React, { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import { Container, Typography, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Grid } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { RootState } from "../redux/store";
 import { setBrands } from "../redux/brandSlice";
 import BrandCard from "../components/BrandCard";
 import { Brand, Exhibitor } from "../types";
-import { addBrand, addExhibitor } from "../services/api";
+import { addBrand, addExhibitor, editBrand, editExhibitor } from "../services/api";
+import { getBrands } from "../redux/brandSlice";
+import { RootState, AppDispatch } from "../redux/store";
 
 const Admin: React.FC = () => {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const navigate = useNavigate();
   const brands = useSelector((state: RootState) => state.brands.brands);
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [isAddingBrand, setIsAddingBrand] = useState(true);
   const [selectedExhibitor, setSelectedExhibitor] = useState<Exhibitor | null>(null);
+  const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [newBrand, setNewBrand] = useState<Partial<Brand>>({});
   const [newExhibitor, setNewExhibitor] = useState<Partial<Exhibitor>>({});
+  const [editedBrand, setEditedBrand] = useState<Partial<Brand>>({});
+  const [editedExhibitor, setEditedExhibitor] = useState<Partial<Exhibitor>>({});
 
-  const handleDragEnd = (result) => {
-    if (!result.destination) return;
-    const items = Array.from(brands);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-    dispatch(setBrands(items));
-  };
+  useEffect(() => {
+    dispatch(getBrands());
+  }, [dispatch]);
 
   const handleCardClick = (exhibitor: Exhibitor) => {
     setSelectedExhibitor(exhibitor);
     setOpen(true);
+  };
+
+  const handleEditClick = (brand: Brand) => {
+    setSelectedBrand(brand);
+    setEditedBrand(brand);
+    setEditOpen(true);
   };
 
   const handleClose = () => {
@@ -49,12 +55,22 @@ const Admin: React.FC = () => {
     setNewExhibitor({});
   };
 
+  const handleEditClose = () => {
+    setEditOpen(false);
+    setSelectedBrand(null);
+    setEditedBrand({});
+  };
+
   const handleAddChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isAddingBrand) {
       setNewBrand({ ...newBrand, [e.target.name]: e.target.value });
     } else {
       setNewExhibitor({ ...newExhibitor, [e.target.name]: e.target.value });
     }
+  };
+
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedBrand({ ...editedBrand, [e.target.name]: e.target.value });
   };
 
   const handleAddSubmit = async () => {
@@ -76,6 +92,21 @@ const Admin: React.FC = () => {
     }
   };
 
+  const handleEditSubmit = async () => {
+    if (selectedBrand) {
+      try {
+        const response = await editBrand(selectedBrand.BrandID, editedBrand);
+        const updatedBrands = brands.map((brand) =>
+          brand.BrandID === selectedBrand.BrandID ? response.data : brand
+        );
+        dispatch(setBrands(updatedBrands));
+        handleEditClose();
+      } catch (error) {
+        console.error("Failed to edit brand:", error);
+      }
+    }
+  };
+
   return (
     <Container>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", my: 4 }}>
@@ -92,38 +123,18 @@ const Admin: React.FC = () => {
           </Button>
         </Box>
       </Box>
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="brands" direction="horizontal">
-          {(provided) => (
-            <div
-              {...provided.droppableProps}
-              ref={provided.innerRef}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                gap: "16px",
-              }}
-            >
-              {brands.map((brand, index) => (
-                <Draggable key={brand.BrandID} draggableId={brand.BrandID} index={index}>
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      {...provided.dragHandleProps}
-                      style={{ ...provided.draggableProps.style }}
-                      onClick={() => handleCardClick(brand.exhibitor)}
-                    >
-                      <BrandCard brand={brand} onClick={handleCardClick} />
-                    </div>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+      <div
+        style={{
+          columnCount: 4,
+          columnGap: "16px",
+        }}
+      >
+        {brands.map((brand) => (
+          <div key={brand.BrandID} style={{ breakInside: "avoid", marginBottom: "16px" }} onClick={() => handleCardClick(brand.exhibitor)}>
+            <BrandCard brand={brand} onClick={handleCardClick} onEdit={handleEditClick} />
+          </div>
+        ))}
+      </div>
 
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Exhibitor Details</DialogTitle>
@@ -296,6 +307,94 @@ const Admin: React.FC = () => {
             Cancel
           </Button>
           <Button onClick={handleAddSubmit} color="primary">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editOpen} onClose={handleEditClose}>
+        <DialogTitle>Edit Brand</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                label="Brand Name"
+                name="brand_name"
+                value={editedBrand.brand_name || ""}
+                onChange={handleEditChange}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Image URL"
+                name="image_url"
+                value={editedBrand.image_url || ""}
+                onChange={handleEditChange}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Stand Number"
+                name="stand_number"
+                value={editedBrand.stand_number || ""}
+                onChange={handleEditChange}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Description"
+                name="description"
+                value={editedBrand.description || ""}
+                onChange={handleEditChange}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Product Tag"
+                name="product_tag"
+                value={editedBrand.product_tag || ""}
+                onChange={handleEditChange}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Location"
+                name="location"
+                value={editedBrand.location || ""}
+                onChange={handleEditChange}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Hall"
+                name="hall"
+                value={editedBrand.hall || ""}
+                onChange={handleEditChange}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="Exhibitor ID"
+                name="exhibitor_id"
+                value={editedBrand.exhibitor_id || ""}
+                onChange={handleEditChange}
+                fullWidth
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleEditClose} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleEditSubmit} color="primary">
             Save
           </Button>
         </DialogActions>
