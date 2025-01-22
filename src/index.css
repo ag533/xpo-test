@@ -1,0 +1,55 @@
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  
+  .boxes-con {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-gap: 10px;
+    grid-auto-flow: row dense;
+    padding: 10px;
+    grid-template-rows: masonry;
+  }
+  
+  .boxes {
+    width: 30%;
+    height: 100%;
+    padding: 10px;
+    grid-row: auto / span 1;
+    background: goldenrod;
+    border-radius: 5px;
+    box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.20);
+  }
+  
+  
+  .boxes:nth-child(odd) {
+    width: 100%;
+    grid-row: auto / span 3;
+    height: 300px;
+    background: yellowgreen;
+  }
+  
+  .boxes:nth-child(even) {
+  
+    width: 100%;
+    grid-row: auto / span 2;
+    height: 200px;
+    background: gold;
+  }
+  
+  .boxes:nth-child(4n) {
+  
+    width: 100%;
+  
+  
+    background: hotpink;
+  }
+  
+  .boxes:nth-child(7) {
+  
+    width: 100%;
+  
+    background: royalblue;
+  }
